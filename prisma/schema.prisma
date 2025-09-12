@@ -19,11 +19,87 @@ model User {
   clerkId   String   @unique // Clerk's user ID
   email     String   @unique
   name      String?
-  role      String   @default("attendee") // attendee | organizer | admin
+  avatar    String?
+  phone     String?
+  x         String?
+  instagram String?
+  facebook  String?
+  website   String?
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   // relations
-  // events    Event[]  @relation("OrganizerEvents")
-  // tickets   Ticket[]
+  participations EventParticipant[]
+  tickets        Ticket[]
+}
+
+enum EventStatus {
+  upcoming
+  ongoing
+  completed
+  cancelled
+}
+
+model Event {
+  id          String      @id @default(cuid())
+  title       String
+  description String?
+  slug        String      @unique
+  category    String?
+  status      EventStatus @default(upcoming)
+  date        DateTime
+  location    String
+  capacity    Int
+  price       Float
+  bannerUrl   String?
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+
+  participations EventParticipant[]
+  tickets        Ticket[]
+}
+
+enum EventRole {
+  attendee
+  organizer
+}
+
+model EventParticipant {
+  id      String    @id @default(cuid())
+  eventId String
+  userId  String
+  role    EventRole
+
+  event Event @relation(fields: [eventId], references: [id])
+  user  User  @relation(fields: [userId], references: [id])
+
+  @@unique([eventId, userId]) // each user can only have 1 role per event
+}
+
+enum TicketType {
+  general
+  vip
+  early_bird
+}
+
+enum TicketStatus {
+  pending
+  confirmed
+  used
+  cancelled
+  expired
+}
+
+model Ticket {
+  id          String       @id @default(cuid())
+  eventId     String
+  userId      String
+  type        TicketType   @default(general)
+  qrCode      String       @unique
+  status      TicketStatus @default(pending)
+  issuedAt    DateTime     @default(now())
+  checkedInAt DateTime? // mark when used at entry
+
+  event Event @relation(fields: [eventId], references: [id])
+  user  User  @relation(fields: [userId], references: [id])
 }
