@@ -29,6 +29,7 @@ model User {
   updatedAt DateTime @updatedAt
 
   // relations
+  eventsCreated  Event[]
   participations EventParticipant[]
   tickets        Ticket[]
 }
@@ -47,16 +48,22 @@ model Event {
   slug        String      @unique
   category    String?
   status      EventStatus @default(upcoming)
-  date        DateTime
+  startDate   DateTime
+  endDate     DateTime?
   location    String
   capacity    Int
   price       Float
   bannerUrl   String?
-  createdAt   DateTime    @default(now())
-  updatedAt   DateTime    @updatedAt
+  createdById String
+  createdBy   User        @relation(fields: [createdById], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   participations EventParticipant[]
   tickets        Ticket[]
+
+  @@unique([id, createdById]) // compound unique key to ensure event IDs are unique per user
 }
 
 enum EventRole {

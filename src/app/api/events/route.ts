@@ -1,12 +1,12 @@
 import { auth } from "@clerk/nextjs/server";
-import { NextResponse } from "next/server";
+import { type NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { tryCatch } from "@/lib/try-catch";
 
 export async function GET() {
   const { data: events, error } = await tryCatch(
     prisma.event.findMany({
-      orderBy: { date: "asc" },
+      orderBy: { startDate: "asc" },
     }),
   );
 
@@ -20,9 +20,9 @@ export async function GET() {
   return NextResponse.json(events, { status: 200 });
 }
 
-export async function POST(req: Request) {
-  const { userId } = await auth();
-  if (!userId) {
+export async function POST(req: NextRequest) {
+  const { userId: clerkId } = await auth();
+  if (!clerkId) {
     return new Response("Unauthorized", { status: 401 });
   }
 
@@ -33,7 +33,7 @@ export async function POST(req: Request) {
     slug,
     category,
     status,
-    date,
+    startDate,
     location,
     capacity,
     price,
@@ -46,7 +46,7 @@ export async function POST(req: Request) {
     slug,
     category,
     status,
-    date,
+    startDate,
     location,
     capacity,
     price,
@@ -58,6 +58,14 @@ export async function POST(req: Request) {
     );
   }
 
+  const { data: user, error: userError } = await tryCatch(
+    prisma.user.findUnique({ where: { clerkId } }),
+  );
+
+  if (userError || !user) {
+    return NextResponse.json({ error: "User not found" }, { status: 404 });
+  }
+
   const { data: event, error } = await tryCatch(
     prisma.event.create({
       data: {
@@ -66,11 +74,12 @@ export async function POST(req: Request) {
         slug,
         category,
         status,
-        date: new Date(date),
+        startDate: new Date(startDate),
         location,
         capacity,
         price,
         bannerUrl,
+        createdById: user.id,
       },
     }),
   );
