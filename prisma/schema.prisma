@@ -35,10 +35,9 @@ model User {
 }
 
 enum EventStatus {
-  upcoming
-  ongoing
-  completed
-  cancelled
+  ACTIVE
+  CANCELLED
+  DELETED
 }
 
 model Event {
@@ -47,9 +46,9 @@ model Event {
   description String?
   slug        String      @unique
   category    String?
-  status      EventStatus @default(upcoming)
+  status      EventStatus @default(ACTIVE)
   startDate   DateTime
-  endDate     DateTime?
+  endDate     DateTime
   location    String
   capacity    Int
   price       Float
@@ -84,26 +83,26 @@ model EventParticipant {
 }
 
 enum TicketType {
-  general
-  vip
+  GENERAL
+  VIP
   early_bird
 }
 
 enum TicketStatus {
-  pending
-  confirmed
-  used
-  cancelled
-  expired
+  PENDING
+  CONFIRMED
+  USED
+  CANCELLED
+  EXPIRED
 }
 
 model Ticket {
   id          String       @id @default(cuid())
   eventId     String
   userId      String
-  type        TicketType   @default(general)
+  type        TicketType   @default(GENERAL)
   qrCode      String       @unique
-  status      TicketStatus @default(pending)
+  status      TicketStatus @default(PENDING)
   issuedAt    DateTime     @default(now())
   checkedInAt DateTime? // mark when used at entry
 
