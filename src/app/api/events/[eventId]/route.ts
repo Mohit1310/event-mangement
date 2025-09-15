@@ -1,24 +1,25 @@
 import { auth } from "@clerk/nextjs/server";
 import { type NextRequest, NextResponse } from "next/server";
+import { EventStatus } from "@/generated/prisma";
 import prisma from "@/lib/prisma";
 import { tryCatch } from "@/lib/try-catch";
+import {
+	type EventUpdateInput,
+	eventUpdateSchema,
+} from "@/lib/validators/event";
+import { withErrorHandler } from "@/lib/with-error-handler";
 
-export async function GET(
-	_: NextRequest,
-	ctx: RouteContext<"/api/events/[eventId]">,
-) {
+// ✅ GET /api/events/:id
+export const GET = withErrorHandler(async (_: NextRequest, ctx) => {
 	const { userId } = await auth();
-
 	if (!userId) {
 		return new Response("Unauthorized", { status: 401 });
 	}
 
-	const { eventId } = await ctx.params;
+	const { eventId } = ctx.params;
 
 	const { data: event, error } = await tryCatch(
-		prisma.event.findUnique({
-			where: { id: eventId },
-		}),
+		prisma.event.findUnique({ where: { id: eventId } }),
 	);
 
 	if (error || !event) {
@@ -26,60 +27,36 @@ export async function GET(
 	}
 
 	return NextResponse.json(event, { status: 200 });
-}
+});
 
 // ✅ PATCH /api/events/:id → Update event
-export async function PATCH(
-	req: NextRequest,
-	ctx: RouteContext<"/api/events/[eventId]">,
-) {
+export const PATCH = withErrorHandler(async (req: NextRequest, ctx) => {
 	const { userId: clerkId } = await auth();
 	if (!clerkId) {
 		return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 	}
 
-	const { eventId } = await ctx.params;
-	const body = await req.json();
+	const { eventId } = ctx.params;
 
 	const { data: user, error: userError } = await tryCatch(
-		prisma.user.findUnique({
-			where: { clerkId },
-		}),
+		prisma.user.findUnique({ where: { clerkId } }),
 	);
 
 	if (userError || !user) {
 		return NextResponse.json({ error: "User not found" }, { status: 404 });
 	}
 
-	const {
-		title,
-		description,
-		slug,
-		category,
-		status,
-		startDate,
-		location,
-		capacity,
-		price,
-	} = body;
+	const json = await req.json();
 
-	const requiredFields = [
-		title,
-		description,
-		slug,
-		category,
-		status,
-		startDate,
-		location,
-		capacity,
-		price,
-	];
-	if (requiredFields.some((field) => !field)) {
+	const parsedResult = eventUpdateSchema.safeParse(json);
+	if (!parsedResult.success) {
 		return NextResponse.json(
-			{ error: "Missing required fields" },
+			{ error: "Validation failed", details: parsedResult.error.issues },
 			{ status: 400 },
 		);
 	}
+
+	const body: EventUpdateInput = parsedResult.data;
 
 	const { data: updatedEvent, error } = await tryCatch(
 		prisma.event.update({
@@ -101,37 +78,34 @@ export async function PATCH(
 	}
 
 	return NextResponse.json(updatedEvent, { status: 200 });
-}
+});
 
-export async function DELETE(
-	_: NextRequest,
-	ctx: RouteContext<"/api/events/[eventId]">,
-) {
+// ✅ DELETE /api/events/:id
+export const DELETE = withErrorHandler(async (_: NextRequest, ctx) => {
 	const { userId: clerkId } = await auth();
 	if (!clerkId) {
 		return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 	}
 
 	const { data: user, error: userError } = await tryCatch(
-		prisma.user.findUnique({
-			where: { clerkId },
-		}),
+		prisma.user.findUnique({ where: { clerkId } }),
 	);
 
 	if (userError || !user) {
 		return NextResponse.json({ error: "User not found" }, { status: 404 });
 	}
 
-	const { eventId } = await ctx.params;
+	const { eventId } = ctx.params;
 
-	const { data: deleted, error } = await tryCatch(
-		prisma.event.delete({
+	const { data: deletedEvent, error } = await tryCatch(
+		prisma.event.update({
 			where: {
 				id_createdById: {
 					id: eventId,
 					createdById: user.id,
 				},
 			},
+			data: { status: EventStatus.DELETED },
 		}),
 	);
 
@@ -143,7 +117,7 @@ export async function DELETE(
 	}
 
 	return NextResponse.json(
-		{ message: "Event deleted successfully", deleted },
+		{ message: "Event deleted successfully", deleted: deletedEvent },
 		{ status: 200 },
 	);
-}
+});
