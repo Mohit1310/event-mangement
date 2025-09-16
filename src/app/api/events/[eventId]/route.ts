@@ -9,7 +9,7 @@ import {
 } from "@/lib/validators/event";
 import { withErrorHandler } from "@/lib/with-error-handler";
 
-// ✅ GET /api/events/:id
+// ✅ GET /api/events/:id → Fetch event by ID
 export const GET = withErrorHandler(async (_: NextRequest, ctx) => {
 	const { userId } = await auth();
 	if (!userId) {
@@ -65,22 +65,22 @@ export const PATCH = withErrorHandler(async (req: NextRequest, ctx) => {
 					id: eventId,
 					createdById: user.id,
 				},
+				status: {
+					not: EventStatus.DELETED,
+				},
 			},
 			data: { ...body, updatedAt: new Date() },
 		}),
 	);
 
 	if (error) {
-		return NextResponse.json(
-			{ error: "Event not found or failed to update event" },
-			{ status: 500 },
-		);
+		return NextResponse.json({ error: "Event not found" }, { status: 404 });
 	}
 
 	return NextResponse.json(updatedEvent, { status: 200 });
 });
 
-// ✅ DELETE /api/events/:id
+// ✅ DELETE /api/events/:id → Soft delete event
 export const DELETE = withErrorHandler(async (_: NextRequest, ctx) => {
 	const { userId: clerkId } = await auth();
 	if (!clerkId) {

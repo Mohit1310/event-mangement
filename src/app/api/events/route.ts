@@ -8,6 +8,7 @@ import {
 } from "@/lib/validators/event";
 import { withErrorHandler } from "@/lib/with-error-handler";
 
+// ✅ GET /api/events → Fetch all events
 export const GET = withErrorHandler(async () => {
 	const { data: events, error } = await tryCatch(
 		prisma.event.findMany({ orderBy: { startDate: "asc" } }),
@@ -23,6 +24,7 @@ export const GET = withErrorHandler(async () => {
 	return NextResponse.json(events, { status: 200 });
 });
 
+// ✅ POST /api/events → Create new event
 export const POST = withErrorHandler(async (req: NextRequest) => {
 	const { userId: clerkId } = await auth();
 	if (!clerkId) {
