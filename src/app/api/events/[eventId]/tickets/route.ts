@@ -115,3 +115,49 @@ export const POST = withErrorHandler(
 		}
 	},
 );
+
+export const GET = withErrorHandler(
+	async (
+		_: NextRequest,
+		ctx: RouteContext<"/api/events/[eventId]/tickets">,
+	) => {
+		const { userId: clerkId } = await auth();
+		if (!clerkId) {
+			return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+		}
+
+		// Find logged-in user in our DB
+		const user = await prisma.user.findUnique({ where: { clerkId } });
+		if (!user) {
+			return NextResponse.json({ error: "User not found" }, { status: 404 });
+		}
+
+		const params = await ctx.params;
+
+		// Verify event exists and is created by logged-in user
+		const event = await prisma.event.findUnique({
+			where: { id: params.eventId },
+		});
+		if (!event) {
+			return NextResponse.json({ error: "Event not found" }, { status: 404 });
+		}
+		if (event.createdById !== user.id) {
+			return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+		}
+
+		const tickets = await prisma.ticket.findMany({
+			where: { eventId: event.id },
+			include: {
+				user: {
+					select: {
+						id: true,
+						name: true,
+						email: true,
+					},
+				},
+			},
+		});
+
+		return NextResponse.json(tickets);
+	},
+);
